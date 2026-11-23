@@ -1,5 +1,6 @@
-
 import express from "express";
+  
+
 
 const app = express();
 
@@ -18,13 +19,69 @@ app.use((req, res, next) => {
   next();
 });
 
-// Get all students
+
+ // Get all students with filtering and pagination
 app.get("/api/students", (req, res) => {
-  res.status(200).json({
+  const { course } = req.query;
+
+  const page = Number(req.query.page ?? 1);
+  const limit = Number(req.query.limit ?? 10);
+
+  // 1. Validate pagination
+  if (
+    !Number.isInteger(page) ||
+    !Number.isInteger(limit) ||
+    page < 1 ||
+    limit < 1 ||
+    limit > 100
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: "Page must be positive and limit must be between 1 and 100",
+    });
+  }
+
+  // 2. Filter students
+  let filteredStudents = students;
+
+  if (course !== undefined) {
+    if (typeof course !== "string" || !course.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Course filter must be a non-empty string",
+      });
+    }
+
+    filteredStudents = students.filter(
+      (student) =>
+        student.course.toLowerCase() === course.trim().toLowerCase()
+    );
+  }
+
+  // 3. Calculate total after filtering
+  const total = filteredStudents.length;
+
+  // 4. Apply pagination
+  const startIndex = (page - 1) * limit;
+
+  const paginatedStudents = filteredStudents.slice(
+    startIndex,
+    startIndex + limit
+  );
+
+  // 5. Return response
+  return res.status(200).json({
     success: true,
-    data: students,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+    data: paginatedStudents,
   });
 });
+
 
 // Get one student
 app.get("/api/students/:id", (req, res) => {
